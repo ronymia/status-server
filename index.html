@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Server Status</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&family=Syne:wght@400;700;800&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0a0c0f;
+      --surface: #111318;
+      --border: #1e2229;
+      --green: #00ff87;
+      --green-dim: #00ff8722;
+      --green-glow: #00ff8755;
+      --amber: #ffb800;
+      --red: #ff4444;
+      --text: #e8eaed;
+      --muted: #5a6070;
+      --font-mono: 'JetBrains Mono', monospace;
+      --font-display: 'Syne', sans-serif;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-mono);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+      overflow-x: hidden;
+    }
+
+    /* grid bg */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(0,255,135,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,255,135,0.03) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 640px;
+      position: relative;
+    }
+
+    header {
+      margin-bottom: 2.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+    }
+
+    .label {
+      font-size: 0.65rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    h1 {
+      font-family: var(--font-display);
+      font-size: 2rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      color: var(--text);
+    }
+
+    h1 span {
+      color: var(--green);
+    }
+
+    /* Big status hero */
+    .hero {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 2rem;
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+      margin-bottom: 1rem;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse at 20% 50%, var(--green-dim) 0%, transparent 60%);
+      pointer-events: none;
+      transition: opacity 0.5s;
+    }
+
+    .hero.down::before {
+      background: radial-gradient(ellipse at 20% 50%, rgba(255,68,68,0.1) 0%, transparent 60%);
+    }
+
+    .pulse-wrap {
+      flex-shrink: 0;
+      position: relative;
+      width: 56px;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .pulse-ring {
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      border: 2px solid var(--green);
+      animation: pulse-ring 2s ease-out infinite;
+    }
+
+    .pulse-ring:nth-child(2) { animation-delay: 0.6s; }
+    .pulse-ring:nth-child(3) { animation-delay: 1.2s; }
+
+    .hero.down .pulse-ring { border-color: var(--red); animation: none; opacity: 0.4; }
+
+    @keyframes pulse-ring {
+      0%   { transform: scale(0.5); opacity: 1; }
+      100% { transform: scale(1.8); opacity: 0; }
+    }
+
+    .dot {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 16px var(--green-glow);
+      flex-shrink: 0;
+      position: relative;
+      z-index: 1;
+    }
+
+    .hero.down .dot { background: var(--red); box-shadow: 0 0 16px rgba(255,68,68,0.5); }
+
+    .hero-text {}
+    .hero-status {
+      font-family: var(--font-display);
+      font-size: 1.5rem;
+      font-weight: 800;
+      color: var(--green);
+      transition: color 0.3s;
+    }
+    .hero.down .hero-status { color: var(--red); }
+    .hero-sub {
+      font-size: 0.7rem;
+      color: var(--muted);
+      margin-top: 0.2rem;
+    }
+
+    /* Stats grid */
+    .stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+      margin-bottom: 1rem;
+    }
+
+    .stat {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1.2rem 1.4rem;
+    }
+
+    .stat-label {
+      font-size: 0.6rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 0.4rem;
+    }
+
+    .stat-value {
+      font-size: 1.4rem;
+      font-weight: 600;
+      color: var(--text);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .stat-value.green { color: var(--green); }
+    .stat-value.amber { color: var(--amber); }
+
+    /* Log */
+    .log-wrap {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1rem 1.4rem;
+    }
+
+    .log-header {
+      font-size: 0.6rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 0.8rem;
+    }
+
+    .log-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+      max-height: 130px;
+      overflow-y: auto;
+    }
+
+    .log-list::-webkit-scrollbar { width: 3px; }
+    .log-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    .log-item {
+      font-size: 0.72rem;
+      color: var(--muted);
+      display: flex;
+      gap: 0.8rem;
+    }
+
+    .log-time { color: var(--green); flex-shrink: 0; }
+    .log-item.fail .log-time { color: var(--red); }
+    .log-item.fail .log-msg { color: var(--red); }
+
+    footer {
+      margin-top: 1.5rem;
+      text-align: center;
+      font-size: 0.62rem;
+      color: var(--muted);
+      letter-spacing: 0.08em;
+    }
+
+    footer span { color: var(--green); }
+
+    /* fade-in */
+    .container { animation: fadein 0.6s ease both; }
+    @keyframes fadein { from { opacity:0; transform: translateY(12px); } to { opacity:1; transform: translateY(0); } }
+  </style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <p class="label">Infrastructure / VPS Monitor</p>
+    <h1>Server <span>Status</span></h1>
+  </header>
+
+  <div class="hero" id="hero">
+    <div class="pulse-wrap">
+      <div class="pulse-ring"></div>
+      <div class="pulse-ring"></div>
+      <div class="pulse-ring"></div>
+      <div class="dot"></div>
+    </div>
+    <div class="hero-text">
+      <div class="hero-status" id="statusText">OPERATIONAL</div>
+      <div class="hero-sub" id="statusSub">All systems running normally</div>
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="stat">
+      <div class="stat-label">Uptime</div>
+      <div class="stat-value green" id="uptime">--</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Response Time</div>
+      <div class="stat-value" id="responseTime">-- ms</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Checks Done</div>
+      <div class="stat-value" id="checkCount">0</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Last Checked</div>
+      <div class="stat-value" id="lastChecked" style="font-size:0.85rem">--:--:--</div>
+    </div>
+  </div>
+
+  <div class="log-wrap">
+    <div class="log-header">Recent Activity</div>
+    <ul class="log-list" id="logList"></ul>
+  </div>
+
+  <footer>Auto-refreshes every <span>10s</span> &mdash; Served by <span>pm2</span></footer>
+</div>
+
+<script>
+  let startTime = Date.now();
+  let checkCount = 0;
+  const logs = [];
+
+  function pad(n) { return String(n).padStart(2, '0'); }
+
+  function timeNow() {
+    const d = new Date();
+    return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+  }
+
+  function formatUptime(ms) {
+    const s = Math.floor(ms / 1000);
+    const m = Math.floor(s / 60);
+    const h = Math.floor(m / 60);
+    const d = Math.floor(h / 24);
+    if (d > 0) return `${d}d ${pad(h % 24)}h`;
+    if (h > 0) return `${pad(h)}h ${pad(m % 60)}m`;
+    return `${pad(m)}m ${pad(s % 60)}s`;
+  }
+
+  function addLog(msg, ok) {
+    logs.unshift({ time: timeNow(), msg, ok });
+    if (logs.length > 20) logs.pop();
+    const list = document.getElementById('logList');
+    list.innerHTML = logs.map(l =>
+      `<li class="log-item${l.ok ? '' : ' fail'}">
+        <span class="log-time">${l.time}</span>
+        <span class="log-msg">${l.msg}</span>
+      </li>`
+    ).join('');
+  }
+
+  async function doCheck() {
+    const t0 = performance.now();
+    let ok = true;
+    let ms = 0;
+    try {
+      await fetch(location.href, { cache: 'no-store', method: 'HEAD' });
+      ms = Math.round(performance.now() - t0);
+    } catch(e) {
+      ok = false;
+    }
+
+    checkCount++;
+    document.getElementById('checkCount').textContent = checkCount;
+    document.getElementById('lastChecked').textContent = timeNow();
+    document.getElementById('uptime').textContent = formatUptime(Date.now() - startTime);
+
+    const hero = document.getElementById('hero');
+    const statusText = document.getElementById('statusText');
+    const statusSub = document.getElementById('statusSub');
+    const rtEl = document.getElementById('responseTime');
+
+    if (ok) {
+      hero.classList.remove('down');
+      statusText.textContent = 'OPERATIONAL';
+      statusSub.textContent = 'All systems running normally';
+      rtEl.textContent = `${ms} ms`;
+      rtEl.className = 'stat-value ' + (ms < 300 ? 'green' : 'amber');
+      addLog(`Ping OK — ${ms}ms`, true);
+    } else {
+      hero.classList.add('down');
+      statusText.textContent = 'UNREACHABLE';
+      statusSub.textContent = 'Server did not respond';
+      rtEl.textContent = `-- ms`;
+      rtEl.className = 'stat-value';
+      addLog('Ping FAILED — no response', false);
+    }
+  }
+
+  doCheck();
+  setInterval(doCheck, 10000);
+</script>
+</body>
+</html>
